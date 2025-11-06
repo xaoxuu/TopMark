@@ -7,40 +7,87 @@
 
 import SwiftUI
 import SwiftData
+import WebKit
 
 struct ContentView: View {
     @Environment(\.modelContext) private var modelContext
-    @Query private var items: [Item]
-
+    @Query(sort: \BookmarkItem.order) private var items: [BookmarkItem]
+    @State private var showingAddDialog = false
+    @State private var newTitle = ""
+    @State private var newURL = ""
+    @State private var selectedItem: BookmarkItem?
+    
     var body: some View {
         NavigationSplitView {
-            List {
+            List(selection: $selectedItem) {
                 ForEach(items) { item in
-                    NavigationLink {
-                        Text("Item at \(item.timestamp, format: Date.FormatStyle(date: .numeric, time: .standard))")
-                    } label: {
-                        Text(item.timestamp, format: Date.FormatStyle(date: .numeric, time: .standard))
+                    NavigationLink(value: item) {
+                        ItemRow(item: item, modelContext: modelContext, selectedItem: $selectedItem)
                     }
                 }
-                .onDelete(perform: deleteItems)
+                .onMove(perform: moveItems)
             }
-            .navigationSplitViewColumnWidth(min: 180, ideal: 200)
+            .navigationSplitViewColumnWidth(min: 200, ideal: 240)
             .toolbar {
                 ToolbarItem {
-                    Button(action: addItem) {
+                    Button(action: { showingAddDialog = true }) {
                         Label("Add Item", systemImage: "plus")
                     }
                 }
             }
         } detail: {
-            Text("Select an item")
+            if let selectedItem = selectedItem {
+                WebViewContainer(url: URL(string: selectedItem.url))
+                    .navigationTitle(selectedItem.title)
+            } else {
+                Text("Select a bookmark")
+            }
+        }
+        .sheet(isPresented: $showingAddDialog) {
+            NavigationStack {
+                Form {
+                    TextField("Title", text: $newTitle)
+                    TextField("URL", text: $newURL)
+                }
+                .navigationTitle("Add Bookmark")
+                .padding(50)
+                .toolbar {
+                    ToolbarItem(placement: .cancellationAction) {
+                        Button("Cancel") {
+                            showingAddDialog = false
+                            newTitle = ""
+                            newURL = ""
+                        }
+                    }
+                    ToolbarItem(placement: .confirmationAction) {
+                        Button("Add") {
+                            addItem()
+                            showingAddDialog = false
+                            newTitle = ""
+                            newURL = ""
+                        }
+                        .disabled(newTitle.isEmpty || newURL.isEmpty)
+                    }
+                }
+                .frame(minWidth: 300, minHeight: 150)
+            }
         }
     }
 
     private func addItem() {
         withAnimation {
-            let newItem = Item(timestamp: Date())
+            let newItem = BookmarkItem(title: newTitle, url: newURL, order: items.count)
             modelContext.insert(newItem)
+        }
+    }
+
+    private func moveItems(from source: IndexSet, to destination: Int) {
+        var updatedItems = items
+        updatedItems.move(fromOffsets: source, toOffset: destination)
+        
+        // Update order for all items
+        for (index, item) in updatedItems.enumerated() {
+            item.order = index
         }
     }
 
@@ -53,7 +100,59 @@ struct ContentView: View {
     }
 }
 
+struct ItemRow: View {
+    let item: BookmarkItem
+    let modelContext: ModelContext
+    @Binding var selectedItem: BookmarkItem?
+    @State private var isHovered = false
+    
+    var body: some View {
+        HStack {
+            Text(item.title)
+            Spacer()
+            if isHovered {
+                Button(action: {
+                    modelContext.delete(item)
+                    selectedItem = nil
+                }) {
+                    Image(systemName: "xmark")
+                }
+                .buttonStyle(.glass)
+                .buttonBorderShape(.capsule)
+            }
+        }
+        .onHover { hovering in
+            isHovered = hovering
+        }
+    }
+}
+
+struct WebViewContainer: View {
+    let url: URL?
+    
+    var body: some View {
+        if let url = url {
+            WebView(url: url)
+        } else {
+            Text("Invalid URL")
+        }
+    }
+}
+
+struct WebView: NSViewRepresentable {
+    let url: URL
+    
+    func makeNSView(context: Context) -> WKWebView {
+        return WKWebView()
+    }
+    
+    func updateNSView(_ webView: WKWebView, context: Context) {
+        let request = URLRequest(url: url)
+        webView.load(request)
+    }
+}
+
 #Preview {
     ContentView()
-        .modelContainer(for: Item.self, inMemory: true)
+        .modelContainer(for: BookmarkItem.self, inMemory: true)
 }
