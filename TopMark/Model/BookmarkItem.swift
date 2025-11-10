@@ -10,6 +10,7 @@ import SwiftData
 
 @Model
 final class BookmarkItem {
+    
     var title: String
     var url: String
     var order: Int

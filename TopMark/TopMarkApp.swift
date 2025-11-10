@@ -7,9 +7,15 @@
 
 import SwiftUI
 import SwiftData
+import Combine
 
 @main
 struct TopMarkApp: App {
+    
+    @StateObject private var statusBarController = StatusBarController()
+    @StateObject private var windowManager = WindowManager.shared
+    @StateObject private var webViewStore = WebViewStore()
+    
     init() {
         // 删除旧的数据库文件
 //        clearOldDatabase()
@@ -39,9 +45,8 @@ struct TopMarkApp: App {
             let existingItems = try context.fetch(FetchDescriptor<BookmarkItem>())
             if existingItems.isEmpty {
                 let initialItems = [
-                    BookmarkItem(title: "xaoxuu", url: "https://xaoxuu.com", order: 0),
-                    BookmarkItem(title: "lobechat", url: "https://lobechat.com/chat", order: 1),
-                    BookmarkItem(title: "deepseek", url: "https://chat.deepseek.com/", order: 2)
+                    BookmarkItem(title: "欢迎", url: "https://xaoxuu.com/wiki/topmark/", order: 0),
+                    BookmarkItem(title: "GitHub", url: "https://github.com/xaoxuu/topmark", order: 1),
                 ]
                 initialItems.forEach { context.insert($0) }
                 try context.save()
@@ -62,8 +67,16 @@ struct TopMarkApp: App {
     }
 
     var body: some Scene {
-        WindowGroup {
+        WindowGroup(id: "main") {
             ContentView()
+                .environmentObject(statusBarController)
+                .onAppear {
+                    if let window = NSApplication.shared.windows.first {
+                        window.setContentSize(windowManager.selectedSize.cgSize)
+                    }
+                    // 设置状态栏
+                    statusBarController.setupPopover(with: sharedModelContainer)
+                }
         }
         .modelContainer(sharedModelContainer)
     }
