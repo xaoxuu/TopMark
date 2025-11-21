@@ -6,8 +6,8 @@ struct PopoverContentView: View {
     @Environment(\.modelContext) private var modelContext
     @Query(sort: \BookmarkItem.order) private var items: [BookmarkItem]
     @State private var selectedItem: BookmarkItem?
-    
-    @StateObject private var webViewStore = WebViewStore()
+    @State private var showingAddDialog = false
+    @StateObject private var webViewStore: WebViewStore = .shared
     
     init() {
         // 由于 init 中不能直接访问 items，所以在 onAppear 中设置默认选中项
@@ -26,10 +26,9 @@ struct PopoverContentView: View {
                             }
                         }
                     }
-                    .padding(.horizontal, 8)
+                    .padding(8)
                 }
                 
-                // 在浏览器中打开
                 HStack {
                     Button {
                         if let selectedItem = selectedItem ?? items.first {
@@ -37,7 +36,7 @@ struct PopoverContentView: View {
                         }
                     } label: {
                         Image(systemName: "arrow.trianglehead.counterclockwise")
-                            .padding(2)
+                            .frame(width: 16, height: 16)
                     }
                     Button {
                         if let selectedItem = selectedItem ?? items.first,
@@ -46,15 +45,49 @@ struct PopoverContentView: View {
                         }
                     } label: {
                         Image(systemName: "safari")
-                            .padding(2)
+                            .frame(width: 16, height: 16)
                     }
+                    Button {
+                        showingAddDialog = true
+                    } label: {
+                        Image(systemName: "plus")
+                            .frame(width: 16, height: 16)
+                    }
+                    Button {
+                        if let item = selectedItem ?? items.first {
+                            let idx = items.firstIndex(of: item)
+                            var next: BookmarkItem?
+                            if let idx, items.count > 1 {
+                                if idx + 1 < items.count {
+                                    next = items[idx+1]
+                                } else if idx < items.count {
+                                    next = items[idx]
+                                }
+                                if next == item, idx - 1 >= 0 {
+                                    next = items[idx-1]
+                                }
+                            }
+                            modelContext.delete(item)
+                            selectedItem = next
+                            if next == nil {
+                                DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                                    withAnimation {
+                                        selectedItem = nil
+                                    }
+                                }
+                            }
+                        }
+                    } label: {
+                        Image(systemName: "trash")
+                            .frame(width: 16, height: 16)
+                    }
+                    .foregroundColor(.red)
                 }
                 .buttonBorderShape(.circle)
                 .buttonStyle(.glass)
-                .padding(8)
-
-                
+                .padding(.trailing, 8)
             }
+            .frame(height: 40)
             
             Divider()
             
@@ -74,8 +107,13 @@ struct PopoverContentView: View {
                             selectedItem = item
                         }
                 } else {
-                    Text("No bookmarks")
-                        .padding(32)
+                    Button(action: { showingAddDialog = true }) {
+                        Label("添加书签", systemImage: "plus")
+                            .padding(16)
+                    }
+                    .buttonStyle(.glass)
+                    .buttonBorderShape(.capsule)
+                    .padding(.vertical, 128)
                 }
             }
             .onAppear {
@@ -89,7 +127,21 @@ struct PopoverContentView: View {
                 webViewStore.preload(items: newValue)
             })
         }
+        .sheet(isPresented: $showingAddDialog) {
+            BookmarkEditorView { newItem in
+                addItem(newItem: newItem)
+            }
+        }
     }
+    
+    
+    private func addItem(newItem: BookmarkNewItem) {
+        withAnimation {
+            let item = BookmarkItem(item: newItem, order: items.count)
+            modelContext.insert(item)
+        }
+    }
+    
 }
 
 struct TabButton: View {
@@ -109,7 +161,6 @@ struct TabButton: View {
                 .lineLimit(1)
                 .padding(.horizontal, 8)
                 .padding(.vertical, 4)
-                
         }
         .buttonStyle(.borderless)
         .background(isSelected ? Color.primary.opacity(0.1) : Color.clear)

@@ -6,15 +6,13 @@ import ServiceManagement
 
 @MainActor
 final class StatusBarController: ObservableObject {
+    
     private var statusItem: NSStatusItem
     private var popover: NSPopover
     private var modelContainer: ModelContainer?
     @Published private(set) var isPopoverShown = false
     
     private var openWindowHandler: (() -> Void)?
-    
-    // 记住这条开机自启的菜单项，方便改状态
-    private var launchAtLoginItem: NSMenuItem!
     
     // 给外面调用，用来注册
     func bindOpenMainWindow(_ handler: @escaping () -> Void) {
@@ -93,13 +91,18 @@ final class StatusBarController: ObservableObject {
         launchItem.target = self
         launchItem.state = SMAppService.mainApp.status == .enabled ? .on : .off
         menu.addItem(launchItem)
-        self.launchAtLoginItem = launchItem
+        
+        menu.addItem(NSMenuItem.separator())
+        
+        let openURL1 = NSMenuItem(title: base64Decoding(encodedString: "6aG555uu5rqQ56CB") ?? "??", action: #selector(openURL(_:)), keyEquivalent: "")
+        openURL1.target = self
+        menu.addItem(openURL1)
         
         menu.addItem(NSMenuItem.separator())
         
         // 添加分隔线和退出选项
         menu.addItem(NSMenuItem.separator())
-        let quitItem = NSMenuItem(title: "退出", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
+        let quitItem = NSMenuItem(title: "退出程序", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
         menu.addItem(quitItem)
         
         statusItem.menu = menu
@@ -141,7 +144,17 @@ final class StatusBarController: ObservableObject {
             }
         }
     }
-    
+    @objc private func openURL(_ sender: NSMenuItem) {
+        if let str = base64Decoding(encodedString: "aHR0cHM6Ly9naXRodWIuY29tL3hhb3h1dS90b3BtYXJr"), let url = URL(string: str) {
+            NSWorkspace.shared.open(url)
+        }
+    }
+    private func base64Decoding(encodedString: String) -> String? {
+        guard let decodedData = Data(base64Encoded: encodedString, options: Data.Base64DecodingOptions(rawValue: 0)) else {
+            return nil
+        }
+        return String(data: decodedData, encoding: .utf8)
+    }
     private func showPopover(_ sender: NSStatusBarButton) {
         popover.show(relativeTo: sender.bounds, of: sender, preferredEdge: .minY)
         isPopoverShown = true

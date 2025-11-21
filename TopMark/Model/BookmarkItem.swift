@@ -20,4 +20,16 @@ final class BookmarkItem {
         self.url = url
         self.order = order
     }
+    
+    init(item: BookmarkNewItem, order: Int) {
+        self.title = item.title
+        self.url = item.url
+        self.order = order
+    }
+    
+}
+
+struct BookmarkNewItem {
+    var title: String
+    var url: String
 }

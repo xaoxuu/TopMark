@@ -14,7 +14,7 @@ struct TopMarkApp: App {
     
     @StateObject private var statusBarController = StatusBarController()
     @StateObject private var windowManager = WindowManager.shared
-    @StateObject private var webViewStore = WebViewStore()
+    @StateObject private var webViewStore: WebViewStore = .shared
     
     init() {
         // 删除旧的数据库文件

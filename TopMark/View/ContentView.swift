@@ -10,24 +10,23 @@ import SwiftData
 import WebKit
 
 struct ContentView: View {
+    
     @Environment(\.modelContext) private var modelContext
     @Query(sort: \BookmarkItem.order) private var items: [BookmarkItem]
     @State private var showingAddDialog = false
-    @State private var newTitle = ""
-    @State private var newURL = ""
     @State private var selectedItem: BookmarkItem?
     
     @Environment(\.openWindow) private var openWindow
     @EnvironmentObject private var statusBarController: StatusBarController
     // 内存层的 webview 缓存
-    @StateObject private var webViewStore = WebViewStore()
+    @StateObject private var webViewStore: WebViewStore = .shared
     
     var body: some View {
         NavigationSplitView {
             List(selection: $selectedItem) {
                 ForEach(items) { item in
                     NavigationLink(value: item) {
-                        ItemRow(item: item, isSelected: item == selectedItem)
+                        Text(item.title)
                     }
                 }
                 .onMove(perform: moveItems)
@@ -79,14 +78,32 @@ struct ContentView: View {
             Menu("操作", systemImage: "ellipsis.circle") {
                 Button("删除", systemImage: "trash") {
                     if let item = selectedItem ?? items.first {
+                        let idx = items.firstIndex(of: item)
+                        var next: BookmarkItem?
+                        if let idx, items.count > 1 {
+                            if idx + 1 < items.count {
+                                next = items[idx+1]
+                            } else if idx < items.count {
+                                next = items[idx]
+                            }
+                            if next == item, idx - 1 >= 0 {
+                                next = items[idx-1]
+                            }
+                        }
                         modelContext.delete(item)
-                        selectedItem = nil
+                        selectedItem = next
+                        if next == nil {
+                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                                withAnimation {
+                                    selectedItem = nil
+                                }
+                            }
+                        }
                     }
                 }
             }
         })
         .onAppear {
-            // 把“怎么开窗口”告诉 statusBarController
             statusBarController.bindOpenMainWindow {
                 openWindow(id: "main")
             }
@@ -100,40 +117,9 @@ struct ContentView: View {
             webViewStore.preload(items: newValue)
         })
         .sheet(isPresented: $showingAddDialog) {
-            NavigationStack {
-                Form {
-                    TextField("标题", text: $newTitle)
-                    TextField("链接", text: $newURL)
-                }
-                .navigationTitle("添加书签")
-                .padding(50)
-                .toolbar {
-                    ToolbarItem(placement: .cancellationAction) {
-                        Button("取消") {
-                            showingAddDialog = false
-                            newTitle = ""
-                            newURL = ""
-                        }
-                    }
-                    ToolbarItem(placement: .confirmationAction) {
-                        Button("确定") {
-                            addItem()
-                            showingAddDialog = false
-                            newTitle = ""
-                            newURL = ""
-                        }
-                        .disabled(newTitle.isEmpty || newURL.isEmpty)
-                    }
-                }
-                .frame(minWidth: 300, minHeight: 150)
+            BookmarkEditorView { newItem in
+                addItem(newItem: newItem)
             }
-        }
-    }
-
-    private func addItem() {
-        withAnimation {
-            let newItem = BookmarkItem(title: newTitle, url: newURL, order: items.count)
-            modelContext.insert(newItem)
         }
     }
 
@@ -146,57 +132,14 @@ struct ContentView: View {
             item.order = index
         }
     }
-
-    private func deleteItems(offsets: IndexSet) {
+    
+    private func addItem(newItem: BookmarkNewItem) {
         withAnimation {
-            for index in offsets {
-                modelContext.delete(items[index])
-            }
+            let item = BookmarkItem(item: newItem, order: items.count)
+            modelContext.insert(item)
         }
     }
-}
-
-struct ItemRow: View {
-    let item: BookmarkItem
-    let isSelected: Bool
-    var body: some View {
-        HStack {
-            Text(item.title)
-            Spacer()
-        }
-    }
-}
-
-struct WebView: NSViewRepresentable {
-    let url: URL
     
-    func makeCoordinator() -> Coordinator {
-        Coordinator()
-    }
-    
-    func makeNSView(context: Context) -> WKWebView {
-        let webView = WebCacheManager.shared.createWebView()
-        webView.navigationDelegate = context.coordinator
-        return webView
-    }
-    
-    func updateNSView(_ webView: WKWebView, context: Context) {
-        var request = URLRequest(url: url)
-        request.cachePolicy = .returnCacheDataElseLoad
-        webView.load(request)
-    }
-    
-    class Coordinator: NSObject, WKNavigationDelegate {
-        @objc func clearCache(_ sender: NSMenuItem) {
-            WebCacheManager.shared.clearCache {
-                print("Cache cleared successfully")
-            }
-        }
-        
-        func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
-            // 可以在这里添加页面加载完成后的处理
-        }
-    }
 }
 
 #Preview {
