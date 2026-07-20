@@ -397,7 +397,7 @@
 				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = NO;
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 6;
+				CURRENT_PROJECT_VERSION = 7;
 				DEVELOPMENT_TEAM = 34W5TB5KD2;
 				ENABLE_APP_SANDBOX = YES;
 				ENABLE_FILE_ACCESS_DOWNLOADS_FOLDER = readwrite;
@@ -417,13 +417,13 @@
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_CFBundleDisplayName = "Top Mark";
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.utilities";
-				INFOPLIST_KEY_LSUIElement = YES;
+				INFOPLIST_KEY_LSUIElement = NO;
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
-				MARKETING_VERSION = 1.0.0;
+				MARKETING_VERSION = 1.1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.xaoxuu.TopMark;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				REGISTER_APP_GROUPS = YES;
@@ -444,7 +444,7 @@
 				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = NO;
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 6;
+				CURRENT_PROJECT_VERSION = 7;
 				DEVELOPMENT_TEAM = 34W5TB5KD2;
 				ENABLE_APP_SANDBOX = YES;
 				ENABLE_FILE_ACCESS_DOWNLOADS_FOLDER = readwrite;
@@ -464,13 +464,13 @@
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_CFBundleDisplayName = "Top Mark";
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.utilities";
-				INFOPLIST_KEY_LSUIElement = YES;
+				INFOPLIST_KEY_LSUIElement = NO;
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
-				MARKETING_VERSION = 1.0.0;
+				MARKETING_VERSION = 1.1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.xaoxuu.TopMark;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				REGISTER_APP_GROUPS = YES;
