@@ -36,7 +36,7 @@ final class StatusBarController: ObservableObject {
         popover.contentSize = WindowManager.shared.selectedSize.cgSize
         let contentView = PopoverContentView()
         popover.contentViewController = NSHostingController(rootView: contentView.modelContainer(modelContainer))
-        popover.behavior = .transient
+        popover.behavior = .applicationDefined
     }
     
     @objc private func togglePopover(_ sender: NSStatusBarButton) {
