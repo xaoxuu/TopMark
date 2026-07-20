@@ -15,6 +15,8 @@ struct TopMarkApp: App {
     @StateObject private var statusBarController = StatusBarController()
     @StateObject private var windowManager = WindowManager.shared
     @StateObject private var webViewStore: WebViewStore = .shared
+    @State private var windowResizeObserver: NSObjectProtocol?
+    @State private var windowCloseObserver: NSObjectProtocol?
     
     init() {
         // 删除旧的数据库文件
@@ -71,11 +73,48 @@ struct TopMarkApp: App {
             ContentView()
                 .environmentObject(statusBarController)
                 .onAppear {
-                    if let window = NSApplication.shared.windows.first {
-                        window.setContentSize(windowManager.selectedSize.cgSize)
+                    if let window = NSApplication.shared.windows.first(where: { $0.isVisible && $0.className.contains("NSWindow") }) ?? NSApplication.shared.windows.first {
+                        window.setContentSize(windowManager.mainWindowSize.cgSize)
+                        // 监听窗口尺寸变化并自动保存
+                        if windowResizeObserver == nil {
+                            windowResizeObserver = NotificationCenter.default.addObserver(
+                                forName: NSWindow.didResizeNotification,
+                                object: window,
+                                queue: .main
+                            ) { notification in
+                                guard let win = notification.object as? NSWindow else { return }
+                                let size = win.contentRect(forFrameRect: win.frame).size
+                                let newSize = WindowSize(width: size.width, height: size.height)
+                                if newSize != windowManager.mainWindowSize {
+                                    windowManager.saveMainWindowSize(newSize)
+                                }
+                            }
+                        }
+                        // 监听窗口关闭时立即保存尺寸
+                        if windowCloseObserver == nil {
+                            windowCloseObserver = NotificationCenter.default.addObserver(
+                                forName: NSWindow.willCloseNotification,
+                                object: window,
+                                queue: .main
+                            ) { notification in
+                                guard let win = notification.object as? NSWindow else { return }
+                                let size = win.contentRect(forFrameRect: win.frame).size
+                                windowManager.saveMainWindowSizeImmediately(WindowSize(width: size.width, height: size.height))
+                            }
+                        }
                     }
                     // 设置状态栏
                     statusBarController.setupPopover(with: sharedModelContainer)
+                }
+                .onDisappear {
+                    if let observer = windowResizeObserver {
+                        NotificationCenter.default.removeObserver(observer)
+                        windowResizeObserver = nil
+                    }
+                    if let observer = windowCloseObserver {
+                        NotificationCenter.default.removeObserver(observer)
+                        windowCloseObserver = nil
+                    }
                 }
         }
         .modelContainer(sharedModelContainer)
