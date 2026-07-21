@@ -1,6 +1,7 @@
 import SwiftUI
 import WebKit
 import SwiftData
+import UniformTypeIdentifiers
 
 struct PopoverContentView: View {
     @Environment(\.modelContext) private var modelContext
@@ -9,6 +10,7 @@ struct PopoverContentView: View {
     @State private var showingAddDialog = false
     @State private var renamingItem: BookmarkItem?
     @StateObject private var webViewStore = WebViewStore()
+    @State private var draggingItem: BookmarkItem?
     
     init() {
         let windowType = "popover"
@@ -23,17 +25,7 @@ struct PopoverContentView: View {
                 ScrollView(.horizontal, showsIndicators: false) {
                     HStack(spacing: 0) {
                         ForEach(items) { item in
-                            TabButton(item: item, isSelected: selectedItem == item) {
-                                selectedItem = item
-                            }
-                            .contextMenu {
-                                Button("重命名", systemImage: "pencil") {
-                                    renamingItem = item
-                                }
-                                Button("删除", systemImage: "trash", role: .destructive) {
-                                    deleteItem(item)
-                                }
-                            }
+                            makeTabItem(item)
                         }
                     }
                     .padding(8)
@@ -119,6 +111,38 @@ struct PopoverContentView: View {
     }
     
     
+    private func moveItems(from sourceIndex: Int, to destIndex: Int) {
+        var updatedItems = items
+        let movedItem = updatedItems.remove(at: sourceIndex)
+        updatedItems.insert(movedItem, at: destIndex)
+        for (index, item) in updatedItems.enumerated() {
+            item.order = index
+        }
+    }
+    
+    @ViewBuilder
+    private func makeTabItem(_ item: BookmarkItem) -> some View {
+        TabButton(item: item, isSelected: selectedItem == item, action: { selectedItem = item })
+            .opacity(draggingItem == item ? 0.3 : 1.0)
+            .onDrag {
+                draggingItem = item
+                return NSItemProvider(object: String(items.firstIndex(of: item) ?? 0) as NSString)
+            }
+            .onDrop(
+                of: [.text],
+                delegate: TabReorderDelegate(
+                    targetItem: item,
+                    items: items,
+                    moveItems: moveItems,
+                    draggingItem: $draggingItem
+                )
+            )
+            .contextMenu {
+                Button("重命名", systemImage: "pencil") { renamingItem = item }
+                Button("删除", systemImage: "trash", role: .destructive) { deleteItem(item) }
+            }
+    }
+    
     private func addItem(newItem: BookmarkNewItem) {
         withAnimation {
             let item = BookmarkItem(item: newItem, order: items.count, windowType: "popover")
@@ -166,15 +190,40 @@ struct TabButton: View {
     }
     
     var body: some View {
-        Button(action: action) {
-            Text(item.title)
-                .lineLimit(1)
-                .padding(.horizontal, 8)
-                .padding(.vertical, 4)
+        Text(item.title)
+            .lineLimit(1)
+            .padding(.horizontal, 8)
+            .padding(.vertical, 4)
+            .background(isSelected ? Color.primary.opacity(0.1) : Color.clear)
+            .foregroundColor(isSelected ? Color.primary.opacity(1) : Color.primary.opacity(0.5))
+            .cornerRadius(32)
+            .contentShape(Rectangle())
+            .onTapGesture(perform: action)
+    }
+}
+
+struct TabReorderDelegate: DropDelegate {
+    let targetItem: BookmarkItem
+    let items: [BookmarkItem]
+    let moveItems: (Int, Int) -> Void
+    @Binding var draggingItem: BookmarkItem?
+    
+    func dropEntered(info: DropInfo) {
+        guard let dragItem = draggingItem,
+              dragItem != targetItem,
+              let fromIndex = items.firstIndex(of: dragItem),
+              let toIndex = items.firstIndex(of: targetItem) else { return }
+        withAnimation(.easeInOut(duration: 0.2)) {
+            moveItems(fromIndex, toIndex)
         }
-        .buttonStyle(.borderless)
-        .background(isSelected ? Color.primary.opacity(0.1) : Color.clear)
-        .foregroundColor(isSelected ? Color.primary.opacity(1) : Color.primary.opacity(0.5))
-        .cornerRadius(32)
+    }
+    
+    func dropUpdated(info: DropInfo) -> NSDragOperation? {
+        return .move
+    }
+    
+    func performDrop(info: DropInfo) -> Bool {
+        draggingItem = nil
+        return true
     }
 }
