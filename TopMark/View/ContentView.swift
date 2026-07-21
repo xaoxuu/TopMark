@@ -15,6 +15,7 @@ struct ContentView: View {
     @Query(sort: \BookmarkItem.order) private var items: [BookmarkItem]
     @State private var showingAddDialog = false
     @State private var selectedItem: BookmarkItem?
+    @State private var renamingItem: BookmarkItem?
     
     @Environment(\.openWindow) private var openWindow
     @EnvironmentObject private var statusBarController: StatusBarController
@@ -31,6 +32,14 @@ struct ContentView: View {
                 ForEach(items) { item in
                     NavigationLink(value: item) {
                         Text(item.title)
+                    }
+                    .contextMenu {
+                        Button("重命名", systemImage: "pencil") {
+                            renamingItem = item
+                        }
+                        Button("删除", systemImage: "trash", role: .destructive) {
+                            deleteItem(item)
+                        }
                     }
                 }
                 .onMove(perform: moveItems)
@@ -79,33 +88,6 @@ struct ContentView: View {
                     NSWorkspace.shared.open(url)
                 }
             }
-            Menu("操作", systemImage: "ellipsis.circle") {
-                Button("删除", systemImage: "trash") {
-                    if let item = selectedItem ?? items.first {
-                        let idx = items.firstIndex(of: item)
-                        var next: BookmarkItem?
-                        if let idx, items.count > 1 {
-                            if idx + 1 < items.count {
-                                next = items[idx+1]
-                            } else if idx < items.count {
-                                next = items[idx]
-                            }
-                            if next == item, idx - 1 >= 0 {
-                                next = items[idx-1]
-                            }
-                        }
-                        modelContext.delete(item)
-                        selectedItem = next
-                        if next == nil {
-                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-                                withAnimation {
-                                    selectedItem = nil
-                                }
-                            }
-                        }
-                    }
-                }
-            }
         })
         .onAppear {
             statusBarController.bindOpenMainWindow {
@@ -125,6 +107,9 @@ struct ContentView: View {
                 addItem(newItem: newItem)
             }
         }
+        .sheet(item: $renamingItem) { item in
+            BookmarkEditorView(item: item) { _ in }
+        }
     }
 
     private func moveItems(from source: IndexSet, to destination: Int) {
@@ -141,6 +126,32 @@ struct ContentView: View {
         withAnimation {
             let item = BookmarkItem(item: newItem, order: items.count, windowType: "main")
             modelContext.insert(item)
+        }
+    }
+    
+    private func deleteItem(_ item: BookmarkItem) {
+        let idx = items.firstIndex(of: item)
+        var next: BookmarkItem?
+        if let idx, items.count > 1 {
+            if idx + 1 < items.count {
+                next = items[idx+1]
+            } else if idx < items.count {
+                next = items[idx]
+            }
+            if next == item, idx - 1 >= 0 {
+                next = items[idx-1]
+            }
+        }
+        withAnimation {
+            modelContext.delete(item)
+        }
+        selectedItem = next
+        if next == nil {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                withAnimation {
+                    selectedItem = nil
+                }
+            }
         }
     }
     

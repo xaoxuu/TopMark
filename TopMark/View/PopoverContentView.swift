@@ -7,6 +7,7 @@ struct PopoverContentView: View {
     @Query(sort: \BookmarkItem.order) private var items: [BookmarkItem]
     @State private var selectedItem: BookmarkItem?
     @State private var showingAddDialog = false
+    @State private var renamingItem: BookmarkItem?
     @StateObject private var webViewStore = WebViewStore()
     
     init() {
@@ -24,6 +25,14 @@ struct PopoverContentView: View {
                         ForEach(items) { item in
                             TabButton(item: item, isSelected: selectedItem == item) {
                                 selectedItem = item
+                            }
+                            .contextMenu {
+                                Button("重命名", systemImage: "pencil") {
+                                    renamingItem = item
+                                }
+                                Button("删除", systemImage: "trash", role: .destructive) {
+                                    deleteItem(item)
+                                }
                             }
                         }
                     }
@@ -54,35 +63,6 @@ struct PopoverContentView: View {
                         Image(systemName: "plus")
                             .frame(width: 16, height: 16)
                     }
-                    Button {
-                        if let item = selectedItem ?? items.first {
-                            let idx = items.firstIndex(of: item)
-                            var next: BookmarkItem?
-                            if let idx, items.count > 1 {
-                                if idx + 1 < items.count {
-                                    next = items[idx+1]
-                                } else if idx < items.count {
-                                    next = items[idx]
-                                }
-                                if next == item, idx - 1 >= 0 {
-                                    next = items[idx-1]
-                                }
-                            }
-                            modelContext.delete(item)
-                            selectedItem = next
-                            if next == nil {
-                                DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                                    withAnimation {
-                                        selectedItem = nil
-                                    }
-                                }
-                            }
-                        }
-                    } label: {
-                        Image(systemName: "trash")
-                            .frame(width: 16, height: 16)
-                    }
-                    .foregroundColor(.red)
                 }
                 .buttonBorderShape(.circle)
                 .buttonStyle(.glass)
@@ -133,6 +113,9 @@ struct PopoverContentView: View {
                 addItem(newItem: newItem)
             }
         }
+        .sheet(item: $renamingItem) { item in
+            BookmarkEditorView(item: item) { _ in }
+        }
     }
     
     
@@ -140,6 +123,32 @@ struct PopoverContentView: View {
         withAnimation {
             let item = BookmarkItem(item: newItem, order: items.count, windowType: "popover")
             modelContext.insert(item)
+        }
+    }
+    
+    private func deleteItem(_ item: BookmarkItem) {
+        let idx = items.firstIndex(of: item)
+        var next: BookmarkItem?
+        if let idx, items.count > 1 {
+            if idx + 1 < items.count {
+                next = items[idx+1]
+            } else if idx < items.count {
+                next = items[idx]
+            }
+            if next == item, idx - 1 >= 0 {
+                next = items[idx-1]
+            }
+        }
+        withAnimation {
+            modelContext.delete(item)
+        }
+        selectedItem = next
+        if next == nil {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                withAnimation {
+                    selectedItem = nil
+                }
+            }
         }
     }
     

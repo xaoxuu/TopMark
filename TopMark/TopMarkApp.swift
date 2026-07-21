@@ -21,11 +21,8 @@ struct TopMarkApp: App {
     }
     
     var sharedModelContainer: ModelContainer = {
-        // 删除旧的数据库文件（迁移 windowType 字段后只需执行一次，之后可删除这行）
-        if let applicationSupportURL = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first {
-            let dbPath = applicationSupportURL.appendingPathComponent("TopMark/bookmarks.store")
-            try? FileManager.default.removeItem(at: dbPath)
-        }
+//        // 删除旧的数据库文件（迁移 windowType 字段后只需执行一次，之后可删除这行）
+//        clearOldDatabase()
         
         do {
             // 配置数据存储路径
@@ -75,6 +72,14 @@ struct TopMarkApp: App {
         }
     }()
 
+    // 出问题时删除旧的数据库
+    private func clearOldDatabase() {
+        if let applicationSupportURL = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first {
+            let dbPath = applicationSupportURL.appendingPathComponent("TopMark/bookmarks.store")
+            try? FileManager.default.removeItem(at: dbPath)
+        }
+    }
+    
     var body: some Scene {
         WindowGroup(id: "main") {
             ContentView()
