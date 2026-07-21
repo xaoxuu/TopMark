@@ -14,17 +14,21 @@ final class BookmarkItem {
     var title: String
     var url: String
     var order: Int
+    /// 所属窗口类型: "main" 或 "popover"
+    var windowType: String
     
-    init(title: String, url: String, order: Int) {
+    init(title: String, url: String, order: Int, windowType: String = "main") {
         self.title = title
         self.url = url
         self.order = order
+        self.windowType = windowType
     }
     
-    init(item: BookmarkNewItem, order: Int) {
+    init(item: BookmarkNewItem, order: Int, windowType: String = "main") {
         self.title = item.title
         self.url = item.url
         self.order = order
+        self.windowType = windowType
     }
     
 }

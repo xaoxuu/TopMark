@@ -18,9 +18,13 @@ struct ContentView: View {
     
     @Environment(\.openWindow) private var openWindow
     @EnvironmentObject private var statusBarController: StatusBarController
-    // 内存层的 webview 缓存
-    @StateObject private var webViewStore: WebViewStore = .shared
+    // 主窗口独立的 webview 缓存
+    @StateObject private var webViewStore = WebViewStore()
     
+    init() {
+        let windowType = "main"
+        _items = Query(filter: #Predicate<BookmarkItem> { $0.windowType == windowType }, sort: \BookmarkItem.order)
+    }
     var body: some View {
         NavigationSplitView {
             List(selection: $selectedItem) {
@@ -135,7 +139,7 @@ struct ContentView: View {
     
     private func addItem(newItem: BookmarkNewItem) {
         withAnimation {
-            let item = BookmarkItem(item: newItem, order: items.count)
+            let item = BookmarkItem(item: newItem, order: items.count, windowType: "main")
             modelContext.insert(item)
         }
     }

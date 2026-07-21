@@ -11,8 +11,7 @@ import WebKit
 
 final class WebViewStore: ObservableObject {
     
-    static let shared = WebViewStore()
-    // key 用 BookmarkItem.id
+    // key 用 BookmarkItem.url
     private var storage: [String: WKWebView] = [:]
 
     func webView(for item: BookmarkItem) -> WKWebView {
@@ -35,7 +34,7 @@ final class WebViewStore: ObservableObject {
     func remove(for url: String) {
         storage[url] = nil
     }
-    private init() {
+    init() {
         
     }
 }

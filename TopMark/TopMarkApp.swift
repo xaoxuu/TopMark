@@ -14,16 +14,19 @@ struct TopMarkApp: App {
     
     @StateObject private var statusBarController = StatusBarController()
     @StateObject private var windowManager = WindowManager.shared
-    @StateObject private var webViewStore: WebViewStore = .shared
     @State private var windowResizeObserver: NSObjectProtocol?
     @State private var windowCloseObserver: NSObjectProtocol?
     
     init() {
-        // 删除旧的数据库文件
-//        clearOldDatabase()
     }
     
     var sharedModelContainer: ModelContainer = {
+        // 删除旧的数据库文件（迁移 windowType 字段后只需执行一次，之后可删除这行）
+        if let applicationSupportURL = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first {
+            let dbPath = applicationSupportURL.appendingPathComponent("TopMark/bookmarks.store")
+            try? FileManager.default.removeItem(at: dbPath)
+        }
+        
         do {
             // 配置数据存储路径
             let url = URL.applicationSupportDirectory.appending(path: "TopMark/bookmarks.store")
@@ -47,11 +50,23 @@ struct TopMarkApp: App {
             let existingItems = try context.fetch(FetchDescriptor<BookmarkItem>())
             if existingItems.isEmpty {
                 let initialItems = [
-                    BookmarkItem(title: "欢迎", url: "https://xaoxuu.com/wiki/topmark/", order: 0),
-                    BookmarkItem(title: "GitHub", url: "https://github.com/xaoxuu/topmark", order: 1),
+                    BookmarkItem(title: "欢迎", url: "https://xaoxuu.com/wiki/topmark/", order: 0, windowType: "main"),
+                    BookmarkItem(title: "GitHub", url: "https://github.com/xaoxuu/topmark", order: 1, windowType: "main"),
                 ]
                 initialItems.forEach { context.insert($0) }
                 try context.save()
+            } else {
+                // 迁移旧数据：确保所有现有数据都有 windowType
+                var needsSave = false
+                for item in existingItems {
+                    if item.windowType.isEmpty {
+                        item.windowType = "main"
+                        needsSave = true
+                    }
+                }
+                if needsSave {
+                    try context.save()
+                }
             }
             
             return container
@@ -59,14 +74,6 @@ struct TopMarkApp: App {
             fatalError("Could not create ModelContainer: \(error)")
         }
     }()
-
-    // 出问题时删除旧的数据库
-    private func clearOldDatabase() {
-        if let applicationSupportURL = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first {
-            let dbPath = applicationSupportURL.appendingPathComponent("TopMark/bookmarks.store")
-            try? FileManager.default.removeItem(at: dbPath)
-        }
-    }
 
     var body: some Scene {
         WindowGroup(id: "main") {

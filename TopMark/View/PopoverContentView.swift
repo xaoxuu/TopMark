@@ -7,10 +7,11 @@ struct PopoverContentView: View {
     @Query(sort: \BookmarkItem.order) private var items: [BookmarkItem]
     @State private var selectedItem: BookmarkItem?
     @State private var showingAddDialog = false
-    @StateObject private var webViewStore: WebViewStore = .shared
+    @StateObject private var webViewStore = WebViewStore()
     
     init() {
-        // 由于 init 中不能直接访问 items，所以在 onAppear 中设置默认选中项
+        let windowType = "popover"
+        _items = Query(filter: #Predicate<BookmarkItem> { $0.windowType == windowType }, sort: \BookmarkItem.order)
     }
     
     var body: some View {
@@ -137,7 +138,7 @@ struct PopoverContentView: View {
     
     private func addItem(newItem: BookmarkNewItem) {
         withAnimation {
-            let item = BookmarkItem(item: newItem, order: items.count)
+            let item = BookmarkItem(item: newItem, order: items.count, windowType: "popover")
             modelContext.insert(item)
         }
     }
