@@ -32,6 +32,8 @@ final class StatusBarController: ObservableObject {
     }
     
     func setupPopover(with modelContainer: ModelContainer) {
+        // 已经配置过就不重复设置，避免重新创建 contentViewController 导致 popover 尺寸重置
+        guard popover.contentViewController == nil else { return }
         self.modelContainer = modelContainer
         popover.contentSize = WindowManager.shared.selectedSize.cgSize
         let contentView = PopoverContentView()
@@ -72,7 +74,26 @@ final class StatusBarController: ObservableObject {
         
         // 添加尺寸选项
         for size in WindowManager.shared.availableSizes {
-            let item = NSMenuItem(title: size.title, action: #selector(changeWindowSize(_:)), keyEquivalent: "")
+            let item = NSMenuItem(title: "", action: #selector(changeWindowSize(_:)), keyEquivalent: "")
+            
+            let paragraphStyle = NSMutableParagraphStyle()
+            paragraphStyle.tabStops = [NSTextTab(textAlignment: .right, location: 280, options: [:])]
+            paragraphStyle.headIndent = 0
+            
+            let titleAttrs: [NSAttributedString.Key: Any] = [
+                .paragraphStyle: paragraphStyle
+            ]
+            let dimAttrs: [NSAttributedString.Key: Any] = [
+                .foregroundColor: NSColor.secondaryLabelColor,
+                .font: NSFont.systemFont(ofSize: NSFont.smallSystemFontSize),
+                .paragraphStyle: paragraphStyle
+            ]
+            
+            let attributed = NSMutableAttributedString()
+            attributed.append(NSAttributedString(string: size.title, attributes: titleAttrs))
+            attributed.append(NSAttributedString(string: "  (\(size.sizeDescription))", attributes: dimAttrs))
+            item.attributedTitle = attributed
+            
             item.target = self
             item.representedObject = size
             item.state = size == WindowManager.shared.selectedSize ? .on : .off
@@ -133,6 +154,16 @@ final class StatusBarController: ObservableObject {
     @objc func openMainWindow(_ sender: NSMenuItem) {
         openWindowHandler?()
         NSApplication.shared.activate()
+        // 延迟确保主窗口已完全创建和布局完成，然后设置尺寸
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+            self.applyMainWindowSize()
+        }
+    }
+    
+    /// 查找主窗口（排除 NSPanel）并应用保存的尺寸
+    func applyMainWindowSize() {
+        guard let window = NSApplication.shared.windows.first(where: { ($0 as? NSPanel) == nil }) else { return }
+        window.setContentSize(WindowManager.shared.mainWindowSize.cgSize)
     }
     @objc private func changeWindowSize(_ sender: NSMenuItem) {
         if let size = sender.representedObject as? WindowSize {

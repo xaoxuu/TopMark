@@ -11,6 +11,7 @@ struct PopoverContentView: View {
     @State private var renamingItem: BookmarkItem?
     @StateObject private var webViewStore = WebViewStore()
     @State private var draggingItem: BookmarkItem?
+    @ObservedObject private var windowManager = WindowManager.shared
     
     init() {
         let windowType = "popover"
@@ -33,23 +34,6 @@ struct PopoverContentView: View {
                 
                 HStack {
                     Button {
-                        if let selectedItem = selectedItem ?? items.first {
-                            webViewStore.webView(for: selectedItem).load(URLRequest(url: URL(string: selectedItem.url)!))
-                        }
-                    } label: {
-                        Image(systemName: "arrow.trianglehead.counterclockwise")
-                            .frame(width: 16, height: 16)
-                    }
-                    Button {
-                        if let selectedItem = selectedItem ?? items.first,
-                           let url = URL(string: selectedItem.url) {
-                            NSWorkspace.shared.open(url)
-                        }
-                    } label: {
-                        Image(systemName: "safari")
-                            .frame(width: 16, height: 16)
-                    }
-                    Button {
                         showingAddDialog = true
                     } label: {
                         Image(systemName: "plus")
@@ -70,12 +54,12 @@ struct PopoverContentView: View {
                     let webView = webViewStore.webView(for: item)
                     WebViewContainer(webView: webView)
                         .navigationTitle(item.title)
-                        .id(item.url)
+                        .id(item.persistentModelID)
                 } else if let item = items.first {
                     let webView = webViewStore.webView(for: item)
                     WebViewContainer(webView: webView)
                         .navigationTitle(item.title)
-                        .id(item.url)
+                        .id(item.persistentModelID)
                         .onAppear {
                             selectedItem = item
                         }
@@ -86,7 +70,7 @@ struct PopoverContentView: View {
                     }
                     .buttonStyle(.glass)
                     .buttonBorderShape(.capsule)
-                    .padding(.vertical, 128)
+                    .padding(.vertical, 800)
                 }
             }
             .onAppear {
@@ -100,6 +84,7 @@ struct PopoverContentView: View {
                 webViewStore.preload(items: newValue)
             })
         }
+        .frame(width: windowManager.selectedSize.width, height: windowManager.selectedSize.height)
         .sheet(isPresented: $showingAddDialog) {
             BookmarkEditorView { newItem in
                 addItem(newItem: newItem)
@@ -122,8 +107,11 @@ struct PopoverContentView: View {
     
     @ViewBuilder
     private func makeTabItem(_ item: BookmarkItem) -> some View {
-        TabButton(item: item, isSelected: selectedItem == item, action: { selectedItem = item })
-            .opacity(draggingItem == item ? 0.3 : 1.0)
+        TabButton(item: item, isSelected: selectedItem == item,
+                  isLoaded: webViewStore.isLoaded(item),
+                  isClosed: webViewStore.isClosed(item),
+                  action: { selectedItem = item })
+            .opacity(draggingItem == item ? 0.2 : 1.0)
             .onDrag {
                 draggingItem = item
                 return NSItemProvider(object: String(items.firstIndex(of: item) ?? 0) as NSString)
@@ -138,7 +126,15 @@ struct PopoverContentView: View {
                 )
             )
             .contextMenu {
-                Button("重命名", systemImage: "pencil") { renamingItem = item }
+                Button("刷新", systemImage: "arrow.trianglehead.counterclockwise") {
+                    webViewStore.webView(for: item).load(URLRequest(url: URL(string: item.url)!))
+                }
+                Button("浏览器打开", systemImage: "safari") {
+                    if let url = URL(string: item.url) { NSWorkspace.shared.open(url) }
+                }
+                Button("关闭标签页", systemImage: "xmark") { closeTab(item) }
+                Divider()
+                Button("编辑", systemImage: "pencil") { renamingItem = item }
                 Button("删除", systemImage: "trash", role: .destructive) { deleteItem(item) }
             }
     }
@@ -176,16 +172,33 @@ struct PopoverContentView: View {
         }
     }
     
+    private func closeTab(_ item: BookmarkItem) {
+        webViewStore.close(item)
+        // 如果关闭的是当前选中的，切换到下一个打开的标签
+        if selectedItem == item {
+            let openItems = items.filter { !webViewStore.isClosed($0) }
+            if let currentIdx = items.firstIndex(of: item) {
+                // 优先选后面的，再选前面的
+                selectedItem = openItems.first(where: { (items.firstIndex(of: $0) ?? -1) > currentIdx })
+                    ?? openItems.last
+            }
+        }
+    }
+    
 }
 
 struct TabButton: View {
     let item: BookmarkItem
     let isSelected: Bool
+    let isLoaded: Bool
+    let isClosed: Bool
     let action: () -> Void
     
-    init(item: BookmarkItem, isSelected: Bool, action: @escaping () -> Void) {
+    init(item: BookmarkItem, isSelected: Bool, isLoaded: Bool = true, isClosed: Bool = false, action: @escaping () -> Void) {
         self.item = item
         self.isSelected = isSelected
+        self.isLoaded = isLoaded
+        self.isClosed = isClosed
         self.action = action
     }
     
@@ -194,8 +207,12 @@ struct TabButton: View {
             .lineLimit(1)
             .padding(.horizontal, 8)
             .padding(.vertical, 4)
-            .background(isSelected ? Color.primary.opacity(0.1) : Color.clear)
-            .foregroundColor(isSelected ? Color.primary.opacity(1) : Color.primary.opacity(0.5))
+            .background(isSelected ? Color.white.opacity(1) : Color.clear)
+            .foregroundColor(
+                isSelected ? Color.primary :
+                isLoaded ? Color.primary :
+                Color.primary.opacity(0.3)
+            )
             .cornerRadius(32)
             .contentShape(Rectangle())
             .onTapGesture(perform: action)

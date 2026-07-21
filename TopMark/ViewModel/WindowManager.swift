@@ -10,10 +10,17 @@ class WindowManager: ObservableObject {
     @Published var mainWindowSize: WindowSize
     
     let availableSizes: [WindowSize] = [
-        WindowSize(width: 360, height: 660),
-        WindowSize(width: 420, height: 800),
-        WindowSize(width: 880, height: 660),
-        WindowSize(width: 1200, height: 800)
+        WindowSize(title: "iPhone SE", width: 320, height: 568),
+        WindowSize(title: "iPhone 13 mini", width: 375, height: 812),
+        WindowSize(title: "Google Pixel 2 XL", width: 411, height: 823),
+        WindowSize(title: "iPhone 17", width: 402, height: 874),
+        WindowSize(title: "iPhone 17 Pro Max", width: 440, height: 956),
+        WindowSize(title: "iPad mini 5 (Portrait)", width: 768, height: 1024),
+        WindowSize(title: "iPad mini 5 (Landscape)", width: 1024, height: 768),
+        WindowSize(title: "iPad mini 8.3 (Portrait)", width: 744, height: 1133),
+        WindowSize(title: "iPad mini 8.3 (Landscape)", width: 1133, height: 744),
+        WindowSize(title: "iPad Pro 11 (Landscape)", width: 1194, height: 834),
+        WindowSize(title: "720P", width: 1280, height: 720),
     ]
     
     private var mainWindowSaveWorkItem: DispatchWorkItem?
@@ -24,7 +31,7 @@ class WindowManager: ObservableObject {
            let savedHeight = UserDefaults.standard.object(forKey: "windowHeight") as? Double {
             selectedSize = WindowSize(width: savedWidth, height: savedHeight)
         } else {
-            selectedSize = WindowSize(width: 420, height: 800)
+            selectedSize = WindowSize(width: 411, height: 823)
         }
         // 从 UserDefaults 读取主窗口尺寸
         if let savedWidth = UserDefaults.standard.object(forKey: "mainWindowWidth") as? Double,
@@ -35,7 +42,7 @@ class WindowManager: ObservableObject {
         }
     }
     
-    /// 保存 popover 窗口尺寸（菜单设置调用）
+    /// 保存 popover 窗口尺寸（菜单选择时调用）
     func saveWindowSize(_ size: WindowSize) {
         selectedSize = size
         UserDefaults.standard.set(size.width, forKey: "windowWidth")
@@ -67,13 +74,20 @@ struct WindowSize: Identifiable, Equatable {
     let id = UUID()
     let width: Double
     let height: Double
+    let title: String
+    
+    init(title: String? = nil, width: Double, height: Double) {
+        self.width = width
+        self.height = height
+        self.title = title ?? "\(Int(width)) x \(Int(height))"
+    }
+    
+    var sizeDescription: String {
+        "\(Int(width))*\(Int(height))"
+    }
     
     static func == (lhs: WindowSize, rhs: WindowSize) -> Bool {
         return lhs.width == rhs.width && lhs.height == rhs.height
-    }
-    
-    var title: String {
-        "\(Int(width)) x \(Int(height))"
     }
     
 }

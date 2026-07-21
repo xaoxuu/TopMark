@@ -13,6 +13,7 @@ struct BookmarkEditorView: View {
     
     @State private var title: String
     @State private var url: String
+    @State private var preloadEnabled: Bool
     
     /// 编辑模式下的原始 item（为 nil 表示新增模式）
     private let editingItem: BookmarkItem?
@@ -28,6 +29,7 @@ struct BookmarkEditorView: View {
         self.onUpdate = nil
         _title = State(initialValue: "")
         _url = State(initialValue: "")
+        _preloadEnabled = State(initialValue: true)
     }
     
     /// 编辑模式
@@ -37,6 +39,7 @@ struct BookmarkEditorView: View {
         self.onUpdate = onUpdate
         _title = State(initialValue: item.title)
         _url = State(initialValue: item.url)
+        _preloadEnabled = State(initialValue: item.preloadEnabled)
     }
     
     var body: some View {
@@ -45,6 +48,7 @@ struct BookmarkEditorView: View {
                 TextField("标题", text: $title)
                 TextField("链接", text: $url)
                     .autocorrectionDisabled()
+                Toggle("启动时预加载", isOn: $preloadEnabled)
             }
             .navigationTitle(editingItem == nil ? "添加书签" : "编辑书签")
             .padding(50)
@@ -60,9 +64,10 @@ struct BookmarkEditorView: View {
                         if let editingItem = editingItem {
                             editingItem.title = title
                             editingItem.url = finalURL
+                            editingItem.preloadEnabled = preloadEnabled
                             onUpdate?(editingItem)
                         } else {
-                            onSave?(.init(title: title, url: finalURL))
+                            onSave?(.init(title: title, url: finalURL, preloadEnabled: preloadEnabled))
                         }
                         dismiss()
                     }

@@ -34,13 +34,22 @@ struct ContentView: View {
                         Text(item.title)
                     }
                     .contextMenu {
-                        Button("重命名", systemImage: "pencil") {
+                        Button("刷新", systemImage: "arrow.trianglehead.counterclockwise") {
+                            webViewStore.webView(for: item).load(URLRequest(url: URL(string: item.url)!))
+                        }
+                        Button("浏览器打开", systemImage: "safari") {
+                            if let url = URL(string: item.url) { NSWorkspace.shared.open(url) }
+                        }
+                        Button("关闭标签页", systemImage: "xmark") { closeTab(item) }
+                        Divider()
+                        Button("编辑", systemImage: "pencil") {
                             renamingItem = item
                         }
                         Button("删除", systemImage: "trash", role: .destructive) {
                             deleteItem(item)
                         }
                     }
+                    .foregroundStyle(webViewStore.isLoaded(item) ? Color.primary.opacity(1) : Color.primary.opacity(0.3))
                 }
                 .onMove(perform: moveItems)
             }
@@ -57,12 +66,12 @@ struct ContentView: View {
                 let webView = webViewStore.webView(for: item)
                 WebViewContainer(webView: webView)
                     .navigationTitle(item.title)
-                    .id(item.url)
+                    .id(item.persistentModelID)
             } else if let item = items.first {
                 let webView = webViewStore.webView(for: item)
                 WebViewContainer(webView: webView)
                     .navigationTitle(item.title)
-                    .id(item.url)
+                    .id(item.persistentModelID)
                     .onAppear {
                         selectedItem = item
                     }
@@ -126,6 +135,8 @@ struct ContentView: View {
         withAnimation {
             let item = BookmarkItem(item: newItem, order: items.count, windowType: "main")
             modelContext.insert(item)
+            let popoverItem = BookmarkItem(item: newItem, order: items.count, windowType: "popover")
+            modelContext.insert(popoverItem)
         }
     }
     
@@ -151,6 +162,18 @@ struct ContentView: View {
                 withAnimation {
                     selectedItem = nil
                 }
+            }
+        }
+    }
+    
+    private func closeTab(_ item: BookmarkItem) {
+        webViewStore.close(item)
+        // 如果关闭的是当前选中的，切换到下一个打开的标签
+        if selectedItem == item {
+            let openItems = items.filter { !webViewStore.isClosed($0) }
+            if let currentIdx = items.firstIndex(of: item) {
+                selectedItem = openItems.first(where: { (items.firstIndex(of: $0) ?? -1) > currentIdx })
+                    ?? openItems.last
             }
         }
     }
