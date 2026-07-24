@@ -26,6 +26,17 @@ struct ContentView: View {
         let windowType = "main"
         _items = Query(filter: #Predicate<BookmarkItem> { $0.windowType == windowType }, sort: \BookmarkItem.order)
     }
+
+    /// 当前活跃书签（优先选中项，否则取第一项）
+    private var activeItem: BookmarkItem? {
+        selectedItem ?? items.first
+    }
+
+    /// 当前活跃的 WebViewState
+    private var activeWebViewState: WebViewState? {
+        activeItem.map { webViewStore.state(for: $0) }
+    }
+
     var body: some View {
         NavigationSplitView {
             List(selection: $selectedItem) {
@@ -34,7 +45,7 @@ struct ContentView: View {
                         Text(item.title)
                     }
                     .contextMenu {
-                        Button("刷新", systemImage: "arrow.trianglehead.counterclockwise") {
+                        Button("重载书签", systemImage: "arrow.trianglehead.counterclockwise") {
                             webViewStore.webView(for: item).load(URLRequest(url: URL(string: item.url)!))
                         }
                         Button("浏览器打开", systemImage: "safari") {
@@ -63,13 +74,13 @@ struct ContentView: View {
             }
         } detail: {
             if let item = selectedItem {
-                let webView = webViewStore.webView(for: item)
-                WebViewContainer(webView: webView)
+                let webViewState = webViewStore.state(for: item)
+                WebViewContainer(webView: webViewState.webView)
                     .navigationTitle(item.title)
                     .id(item.persistentModelID)
             } else if let item = items.first {
-                let webView = webViewStore.webView(for: item)
-                WebViewContainer(webView: webView)
+                let webViewState = webViewStore.state(for: item)
+                WebViewContainer(webView: webViewState.webView)
                     .navigationTitle(item.title)
                     .id(item.persistentModelID)
                     .onAppear {
@@ -85,19 +96,34 @@ struct ContentView: View {
             }
         }
         .frame(minWidth: 360, idealWidth: 1280, maxWidth: .infinity, minHeight: 500, idealHeight: 720, maxHeight: .infinity)
-        .toolbar(content: {
-            Button("刷新", systemImage: "arrow.trianglehead.counterclockwise") {
-                if let item = selectedItem ?? items.first {
-                    webViewStore.webView(for: item).load(URLRequest(url: URL(string: item.url)!))
+        .toolbar {
+//            // 重置到书签原始地址
+//            ToolbarItem(placement: .navigation) {
+//                
+//            }
+            ToolbarItemGroup(placement: .primaryAction) {
+                // 重置到书签原始地址
+                Button(action: {
+                    if let item = activeItem, let url = URL(string: item.url) {
+                        activeWebViewState?.webView.load(URLRequest(url: url))
+                    }
+                }) {
+                    Image(systemName: "arrow.trianglehead.counterclockwise")
                 }
-            }
-            Button("浏览器打开", systemImage: "safari") {
-                if let item = selectedItem ?? items.first,
-                   let url = URL(string: item.url) {
-                    NSWorkspace.shared.open(url)
+                .disabled(activeItem == nil)
+                .help("重载书签")
+                // 在浏览器中打开
+                Button(action: {
+                    if let url = activeWebViewState?.url {
+                        NSWorkspace.shared.open(url)
+                    }
+                }) {
+                    Image(systemName: "safari")
                 }
+                .disabled(activeWebViewState?.url == nil)
+                .help("在浏览器中打开")
             }
-        })
+        }
         .onAppear {
             statusBarController.bindOpenMainWindow {
                 openWindow(id: "main")
@@ -120,6 +146,8 @@ struct ContentView: View {
             BookmarkEditorView(item: item) { _ in }
         }
     }
+
+    // MARK: - 数据操作
 
     private func moveItems(from source: IndexSet, to destination: Int) {
         var updatedItems = items

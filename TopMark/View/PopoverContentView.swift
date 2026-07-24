@@ -126,7 +126,7 @@ struct PopoverContentView: View {
                 )
             )
             .contextMenu {
-                Button("刷新", systemImage: "arrow.trianglehead.counterclockwise") {
+                Button("重载书签", systemImage: "arrow.trianglehead.counterclockwise") {
                     webViewStore.webView(for: item).load(URLRequest(url: URL(string: item.url)!))
                 }
                 Button("浏览器打开", systemImage: "safari") {

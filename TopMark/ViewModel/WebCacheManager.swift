@@ -9,7 +9,7 @@ class WebCacheManager {
     private init() {}
     
     // 创建一个配置为启用磁盘缓存的 WebView
-    func createWebView() -> WKWebView {
+    func createWebView() -> TopMarkWebView {
         let config = WKWebViewConfiguration()
         // 使用默认的持久化数据存储
         config.websiteDataStore = websiteDataStore
@@ -18,8 +18,10 @@ class WebCacheManager {
         preferences.allowsContentJavaScript = true
         config.defaultWebpagePreferences = preferences
         
-        let webView = WKWebView(frame: .zero, configuration: config)
+        let webView = TopMarkWebView(frame: .zero, configuration: config)
         webView.allowsMagnification = true
+        // macOS 13.3+ 启用 Web Inspector，支持检查元素
+        webView.isInspectable = true
         return webView
     }
     
