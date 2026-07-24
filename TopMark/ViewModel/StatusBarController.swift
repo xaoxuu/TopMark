@@ -36,7 +36,14 @@ final class StatusBarController: ObservableObject {
         guard popover.contentViewController == nil else { return }
         self.modelContainer = modelContainer
         popover.contentSize = WindowManager.shared.selectedSize.cgSize
-        let contentView = PopoverContentView()
+        var contentView = PopoverContentView()
+        contentView.onSizeChange = { [weak self] size in
+            guard let self = self else { return }
+            NSAnimationContext.runAnimationGroup { context in
+                context.duration = 0.2
+                self.popover.contentSize = size.cgSize
+            }
+        }
         popover.contentViewController = NSHostingController(rootView: contentView.modelContainer(modelContainer))
         popover.behavior = .applicationDefined
     }
@@ -66,42 +73,6 @@ final class StatusBarController: ObservableObject {
         
         menu.addItem(NSMenuItem.separator())
         
-        // 窗口尺寸
-        let sizeTitle = NSMenuItem()
-        sizeTitle.title = "窗口尺寸"
-        sizeTitle.isEnabled = false
-        menu.addItem(sizeTitle)
-        
-        // 添加尺寸选项
-        for size in WindowManager.shared.availableSizes {
-            let item = NSMenuItem(title: "", action: #selector(changeWindowSize(_:)), keyEquivalent: "")
-            
-            let paragraphStyle = NSMutableParagraphStyle()
-            paragraphStyle.tabStops = [NSTextTab(textAlignment: .right, location: 280, options: [:])]
-            paragraphStyle.headIndent = 0
-            
-            let titleAttrs: [NSAttributedString.Key: Any] = [
-                .paragraphStyle: paragraphStyle
-            ]
-            let dimAttrs: [NSAttributedString.Key: Any] = [
-                .foregroundColor: NSColor.secondaryLabelColor,
-                .font: NSFont.systemFont(ofSize: NSFont.smallSystemFontSize),
-                .paragraphStyle: paragraphStyle
-            ]
-            
-            let attributed = NSMutableAttributedString()
-            attributed.append(NSAttributedString(string: size.title, attributes: titleAttrs))
-            attributed.append(NSAttributedString(string: "  (\(size.sizeDescription))", attributes: dimAttrs))
-            item.attributedTitle = attributed
-            
-            item.target = self
-            item.representedObject = size
-            item.state = size == WindowManager.shared.selectedSize ? .on : .off
-            menu.addItem(item)
-        }
-        
-        // 添加右键菜单
-        menu.addItem(NSMenuItem.separator())
         let cleanItem = NSMenuItem(title: "清除网页缓存", action: #selector(clearCache(_:)), keyEquivalent: "")
         cleanItem.target = self
         menu.addItem(cleanItem)
@@ -164,16 +135,6 @@ final class StatusBarController: ObservableObject {
     func applyMainWindowSize() {
         guard let window = NSApplication.shared.windows.first(where: { ($0 as? NSPanel) == nil }) else { return }
         window.setContentSize(WindowManager.shared.mainWindowSize.cgSize)
-    }
-    @objc private func changeWindowSize(_ sender: NSMenuItem) {
-        if let size = sender.representedObject as? WindowSize {
-            WindowManager.shared.saveWindowSize(size)
-            // 只更新尺寸，不重新创建视图
-            NSAnimationContext.runAnimationGroup { context in
-                context.duration = 0.2
-                popover.contentSize = size.cgSize
-            }
-        }
     }
     @objc private func openURL(_ sender: NSMenuItem) {
         if let str = base64Decoding(encodedString: "aHR0cHM6Ly9naXRodWIuY29tL3hhb3h1dS90b3BtYXJr"), let url = URL(string: str) {

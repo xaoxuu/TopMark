@@ -48,15 +48,15 @@ struct ContentView: View {
                         Button("重载书签", systemImage: "arrow.trianglehead.counterclockwise") {
                             webViewStore.webView(for: item).load(URLRequest(url: URL(string: item.url)!))
                         }
-                        Button("浏览器打开", systemImage: "safari") {
+                        Button("在浏览器中打开", systemImage: "safari") {
                             if let url = URL(string: item.url) { NSWorkspace.shared.open(url) }
                         }
                         Button("关闭标签页", systemImage: "xmark") { closeTab(item) }
                         Divider()
-                        Button("编辑", systemImage: "pencil") {
+                        Button("编辑书签", systemImage: "pencil") {
                             renamingItem = item
                         }
-                        Button("删除", systemImage: "trash", role: .destructive) {
+                        Button("删除书签", systemImage: "trash", role: .destructive) {
                             deleteItem(item)
                         }
                     }

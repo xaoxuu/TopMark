@@ -12,6 +12,7 @@ struct PopoverContentView: View {
     @StateObject private var webViewStore = WebViewStore()
     @State private var draggingItem: BookmarkItem?
     @ObservedObject private var windowManager = WindowManager.shared
+    var onSizeChange: ((WindowSize) -> Void)?
     
     init() {
         let windowType = "popover"
@@ -33,12 +34,66 @@ struct PopoverContentView: View {
                 }
                 
                 HStack {
-                    Button {
-                        showingAddDialog = true
+//                    Button {
+//                        showingAddDialog = true
+//                    } label: {
+//                        Image(systemName: "plus")
+//                            .frame(width: 16, height: 16)
+//                    }
+
+                    Menu {
+                        if let item = selectedItem {
+                            Button("重载书签", systemImage: "arrow.trianglehead.counterclockwise") {
+                                webViewStore.webView(for: item).load(URLRequest(url: URL(string: item.url)!))
+                            }
+                            Button("在浏览器中打开", systemImage: "safari") {
+                                if let url = URL(string: item.url) { NSWorkspace.shared.open(url) }
+                            }
+                            Button("关闭标签页", systemImage: "xmark") { closeTab(item) }
+                            Divider()
+                        }
+                        
+                        Button {
+                            showingAddDialog = true
+                        } label: {
+                            Image(systemName: "plus")
+                                .frame(width: 16, height: 16)
+                            Text("新增书签")
+                        }
+                        Divider()
+                        Text("窗口尺寸")
+                        ForEach(windowManager.availableSizes) { size in
+                            Button {
+                                windowManager.saveWindowSize(size)
+                                onSizeChange?(size)
+                            } label: {
+                                HStack {
+                                    if size == windowManager.selectedSize {
+                                        Image(systemName: "checkmark")
+                                    } else {
+                                        Image(systemName: "checkmark").hidden()
+                                    }
+                                    Text(size.title)
+                                    Text("(\(size.sizeDescription))")
+                                        .font(.caption)
+                                        .foregroundColor(.secondary)
+                                }
+                            }
+                        }
+                        
+                        if let item = selectedItem {
+                            Divider()
+                            Button("编辑书签", systemImage: "pencil") { renamingItem = item }
+                            Button("删除书签", systemImage: "trash", role: .destructive) { deleteItem(item) }
+                        }
+                        
                     } label: {
-                        Image(systemName: "plus")
+                        Image(systemName: "ellipsis.circle")
                             .frame(width: 16, height: 16)
+                            .padding(.vertical, 8)
                     }
+                    .menuIndicator(.hidden)
+                    .menuStyle(.borderlessButton)
                 }
                 .buttonBorderShape(.circle)
                 .buttonStyle(.glass)
@@ -129,13 +184,13 @@ struct PopoverContentView: View {
                 Button("重载书签", systemImage: "arrow.trianglehead.counterclockwise") {
                     webViewStore.webView(for: item).load(URLRequest(url: URL(string: item.url)!))
                 }
-                Button("浏览器打开", systemImage: "safari") {
+                Button("在浏览器中打开", systemImage: "safari") {
                     if let url = URL(string: item.url) { NSWorkspace.shared.open(url) }
                 }
                 Button("关闭标签页", systemImage: "xmark") { closeTab(item) }
                 Divider()
-                Button("编辑", systemImage: "pencil") { renamingItem = item }
-                Button("删除", systemImage: "trash", role: .destructive) { deleteItem(item) }
+                Button("编辑书签", systemImage: "pencil") { renamingItem = item }
+                Button("删除书签", systemImage: "trash", role: .destructive) { deleteItem(item) }
             }
     }
     
