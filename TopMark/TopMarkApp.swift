@@ -8,6 +8,7 @@
 import SwiftUI
 import SwiftData
 import Combine
+import UniformTypeIdentifiers
 
 @main
 struct TopMarkApp: App {
@@ -155,6 +156,55 @@ struct TopMarkApp: App {
                 }
         }
         .modelContainer(sharedModelContainer)
+        .commands {
+            // 「文件」菜单：导入/导出书签（直接操作数据库，与窗口可见性无关）
+            CommandGroup(after: .importExport) {
+                Button("导入书签（主窗口）…") {
+                    importBookmarks(windowType: "main")
+                }
+                Button("导出书签（主窗口）…") {
+                    exportBookmarks(windowType: "main")
+                }
+                Divider()
+                Button("导入书签（Popover）…") {
+                    importBookmarks(windowType: "popover")
+                }
+                Button("导出书签（Popover）…") {
+                    exportBookmarks(windowType: "popover")
+                }
+            }
+        }
+    }
+    
+    /// 导出指定窗口类型的书签到下载文件夹，并在 Finder 中显示
+    private func exportBookmarks(windowType: String) {
+        do {
+            let url = try BookmarkTransfer.exportBookmarks(windowType: windowType, from: sharedModelContainer.mainContext)
+            NSWorkspace.shared.activateFileViewerSelecting([url])
+        } catch {
+            showAlert(title: "导出失败", message: "无法写入下载文件夹。")
+        }
+    }
+    
+    /// 弹文件选择器，从 JSON 文件导入书签到指定窗口类型
+    private func importBookmarks(windowType: String) {
+        let panel = NSOpenPanel()
+        panel.allowedContentTypes = [.json]
+        panel.allowsMultipleSelection = false
+        panel.canChooseDirectories = false
+        guard panel.runModal() == .OK, let url = panel.url else { return }
+        do {
+            try BookmarkTransfer.importBookmarks(from: url, windowType: windowType, into: sharedModelContainer.mainContext)
+        } catch {
+            showAlert(title: "导入失败", message: "文件格式不正确，请选择有效的书签 JSON 文件。")
+        }
+    }
+    
+    private func showAlert(title: String, message: String) {
+        let alert = NSAlert()
+        alert.messageText = title
+        alert.informativeText = message
+        alert.runModal()
     }
     
 }

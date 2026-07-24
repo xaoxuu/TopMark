@@ -57,13 +57,13 @@ struct ContentView: View {
                 .onMove(perform: moveItems)
             }
             .navigationSplitViewColumnWidth(min: 200, ideal: 240)
-            .toolbar {
-                ToolbarItem {
-                    Button(action: { showingAddDialog = true }) {
-                        Label("添加书签", systemImage: "plus")
-                    }
-                }
-            }
+//            .toolbar {
+//                ToolbarItem {
+//                    Button(action: { showingAddDialog = true }) {
+//                        Label("添加书签", systemImage: "plus")
+//                    }
+//                }
+//            }
         } detail: {
             if let item = selectedItem {
                 let webViewState = webViewStore.state(for: item)
@@ -79,12 +79,12 @@ struct ContentView: View {
                         selectedItem = item
                     }
             } else {
-                Button(action: { showingAddDialog = true }) {
-                    Label("添加书签", systemImage: "plus")
-                        .padding(16)
-                }
-                .buttonStyle(.glass)
-                .buttonBorderShape(.capsule)
+//                Button(action: { showingAddDialog = true }) {
+//                    Label("添加书签", systemImage: "plus")
+//                        .padding(16)
+//                }
+//                .buttonStyle(.glass)
+//                .buttonBorderShape(.capsule)
             }
         }
         .frame(minWidth: 360, idealWidth: 1280, maxWidth: .infinity, minHeight: 500, idealHeight: 720, maxHeight: .infinity)
@@ -117,13 +117,26 @@ struct ContentView: View {
             }
             ToolbarItem {
                 Menu {
+                    Button(action: { showingAddDialog = true }) {
+                        Label("添加书签", systemImage: "plus")
+                    }
                     Button(action: { showingImporter = true }) {
                         Label("导入书签", systemImage: "square.and.arrow.down")
                     }
+                    Divider()
                     Button(action: exportBookmarks) {
                         Label("导出书签", systemImage: "square.and.arrow.up")
                     }
                     .disabled(items.isEmpty)
+                    if let item = selectedItem {
+                        Divider()
+                        Button("编辑书签", systemImage: "pencil") {
+                            renamingItem = item
+                        }
+                        Button("删除书签", systemImage: "trash", role: .destructive) {
+                            deleteItem(item)
+                        }
+                    }
                 } label: {
                     Image(systemName: "ellipsis.circle")
                 }
@@ -212,20 +225,10 @@ struct ContentView: View {
     
     /// 从 JSON 文件导入书签：合并追加
     private func importBookmarks(from url: URL) {
-        let accessing = url.startAccessingSecurityScopedResource()
-        defer { if accessing { url.stopAccessingSecurityScopedResource() } }
-        guard let data = try? Data(contentsOf: url),
-              let parsed = try? BookmarkTransfer.parse(data: data) else {
+        do {
+            try BookmarkTransfer.importBookmarks(from: url, windowType: "main", into: modelContext)
+        } catch {
             importFailed = true
-            return
-        }
-        var order = (items.map(\.order).max() ?? -1) + 1
-        withAnimation {
-            for transferItem in parsed {
-                let item = BookmarkItem(title: transferItem.title, url: transferItem.url, order: order, windowType: "main", preloadEnabled: transferItem.preloadEnabled)
-                modelContext.insert(item)
-                order += 1
-            }
         }
     }
     

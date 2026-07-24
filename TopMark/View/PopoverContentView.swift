@@ -57,20 +57,24 @@ struct PopoverContentView: View {
                             Divider()
                         }
                         
-                        Button {
+                        Button("添加书签", systemImage: "plus") {
                             showingAddDialog = true
-                        } label: {
-                            Image(systemName: "plus")
-                                .frame(width: 16, height: 16)
-                            Text("添加书签")
                         }
                         Button("导入书签…", systemImage: "square.and.arrow.down") {
                             showingImporter = true
                         }
+                        Divider()
                         Button("导出书签…", systemImage: "square.and.arrow.up") {
                             exportBookmarks()
                         }
                         .disabled(items.isEmpty)
+                        
+                        if let item = selectedItem {
+                            Divider()
+                            Button("编辑书签", systemImage: "pencil") { renamingItem = item }
+                            Button("删除书签", systemImage: "trash", role: .destructive) { deleteItem(item) }
+                        }
+                        
                         Divider()
                         Text("窗口尺寸")
                         ForEach(windowManager.availableSizes) { size in
@@ -90,12 +94,6 @@ struct PopoverContentView: View {
                                         .foregroundColor(.secondary)
                                 }
                             }
-                        }
-                        
-                        if let item = selectedItem {
-                            Divider()
-                            Button("编辑书签", systemImage: "pencil") { renamingItem = item }
-                            Button("删除书签", systemImage: "trash", role: .destructive) { deleteItem(item) }
                         }
                         
                     } label: {
@@ -229,20 +227,10 @@ struct PopoverContentView: View {
     
     /// 从 JSON 文件导入书签：合并追加
     private func importBookmarks(from url: URL) {
-        let accessing = url.startAccessingSecurityScopedResource()
-        defer { if accessing { url.stopAccessingSecurityScopedResource() } }
-        guard let data = try? Data(contentsOf: url),
-              let parsed = try? BookmarkTransfer.parse(data: data) else {
+        do {
+            try BookmarkTransfer.importBookmarks(from: url, windowType: "popover", into: modelContext)
+        } catch {
             importFailed = true
-            return
-        }
-        var order = (items.map(\.order).max() ?? -1) + 1
-        withAnimation {
-            for transferItem in parsed {
-                let item = BookmarkItem(title: transferItem.title, url: transferItem.url, order: order, windowType: "popover", preloadEnabled: transferItem.preloadEnabled)
-                modelContext.insert(item)
-                order += 1
-            }
         }
     }
     

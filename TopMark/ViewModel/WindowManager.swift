@@ -20,7 +20,7 @@ class WindowManager: ObservableObject {
         WindowSize(title: "iPad mini 8.3 (Portrait)", width: 744, height: 1133),
         WindowSize(title: "iPad mini 8.3 (Landscape)", width: 1133, height: 744),
         WindowSize(title: "iPad Pro 11 (Landscape)", width: 1194, height: 834),
-        WindowSize(title: "720P", width: 1280, height: 720),
+        WindowSize(title: "1280 x 720", width: 1280, height: 720),
     ]
     
     private var mainWindowSaveWorkItem: DispatchWorkItem?

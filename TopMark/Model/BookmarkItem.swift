@@ -16,7 +16,7 @@ final class BookmarkItem {
     var order: Int
     /// 所属窗口类型: "main" 或 "popover"
     var windowType: String
-    /// 启动时是否预加载
+    /// 启动后是否预加载
     var preloadEnabled: Bool
     
     init(title: String, url: String, order: Int, windowType: String = "main", preloadEnabled: Bool = false) {

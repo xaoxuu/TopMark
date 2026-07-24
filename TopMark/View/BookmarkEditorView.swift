@@ -48,7 +48,7 @@ struct BookmarkEditorView: View {
                 TextField("标题", text: $title)
                 TextField("链接", text: $url)
                     .autocorrectionDisabled()
-                Toggle("启动时预加载", isOn: $preloadEnabled)
+                Toggle("启动后预加载", isOn: $preloadEnabled)
             }
             .navigationTitle(editingItem == nil ? "添加书签" : "编辑书签")
             .padding(50)

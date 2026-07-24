@@ -7,6 +7,7 @@
 
 import Foundation
 import SwiftUI
+import SwiftData
 
 /// 用于 JSON 导入/导出的书签传输模型
 struct BookmarkTransferItem: Codable {
@@ -44,6 +45,29 @@ enum BookmarkTransfer {
         }
         try exportData(items: items).write(to: dest, options: .atomic)
         return dest
+    }
+
+    /// 导出指定窗口类型的书签到下载文件夹，返回保存的文件 URL
+    static func exportBookmarks(windowType: String, from context: ModelContext) throws -> URL {
+        let descriptor = FetchDescriptor<BookmarkItem>(
+            predicate: #Predicate { $0.windowType == windowType },
+            sortBy: [SortDescriptor(\.order)]
+        )
+        return try saveToDownloads(items: context.fetch(descriptor))
+    }
+
+    /// 从 JSON 文件导入书签到指定窗口类型：合并追加
+    static func importBookmarks(from url: URL, windowType: String, into context: ModelContext) throws {
+        let accessing = url.startAccessingSecurityScopedResource()
+        defer { if accessing { url.stopAccessingSecurityScopedResource() } }
+        let parsed = try parse(data: Data(contentsOf: url))
+        let descriptor = FetchDescriptor<BookmarkItem>(predicate: #Predicate { $0.windowType == windowType })
+        let existing = (try? context.fetch(descriptor)) ?? []
+        var order = (existing.map(\.order).max() ?? -1) + 1
+        for transferItem in parsed {
+            context.insert(BookmarkItem(title: transferItem.title, url: transferItem.url, order: order, windowType: windowType, preloadEnabled: transferItem.preloadEnabled))
+            order += 1
+        }
     }
 
 }
