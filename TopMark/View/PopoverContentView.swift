@@ -9,6 +9,10 @@ struct PopoverContentView: View {
     @State private var selectedItem: BookmarkItem?
     @State private var showingAddDialog = false
     @State private var renamingItem: BookmarkItem?
+    @State private var showingImporter = false
+    @State private var exportedURL: URL?
+    @State private var exportFailed = false
+    @State private var importFailed = false
     @StateObject private var webViewStore = WebViewStore()
     @State private var draggingItem: BookmarkItem?
     @ObservedObject private var windowManager = WindowManager.shared
@@ -58,8 +62,15 @@ struct PopoverContentView: View {
                         } label: {
                             Image(systemName: "plus")
                                 .frame(width: 16, height: 16)
-                            Text("新增书签")
+                            Text("添加书签")
                         }
+                        Button("导入书签…", systemImage: "square.and.arrow.down") {
+                            showingImporter = true
+                        }
+                        Button("导出书签…", systemImage: "square.and.arrow.up") {
+                            exportBookmarks()
+                        }
+                        .disabled(items.isEmpty)
                         Divider()
                         Text("窗口尺寸")
                         ForEach(windowManager.availableSizes) { size in
@@ -148,6 +159,12 @@ struct PopoverContentView: View {
         .sheet(item: $renamingItem) { item in
             BookmarkEditorView(item: item) { _ in }
         }
+        .fileImporter(isPresented: $showingImporter, allowedContentTypes: [.json]) { result in
+            if case .success(let url) = result {
+                importBookmarks(from: url)
+            }
+        }
+        .modifier(BookmarkTransferAlerts(exportedURL: $exportedURL, exportFailed: $exportFailed, importFailed: $importFailed))
     }
     
     
@@ -198,6 +215,34 @@ struct PopoverContentView: View {
         withAnimation {
             let item = BookmarkItem(item: newItem, order: items.count, windowType: "popover")
             modelContext.insert(item)
+        }
+    }
+    
+    /// 导出书签到下载文件夹
+    private func exportBookmarks() {
+        do {
+            exportedURL = try BookmarkTransfer.saveToDownloads(items: items)
+        } catch {
+            exportFailed = true
+        }
+    }
+    
+    /// 从 JSON 文件导入书签：合并追加
+    private func importBookmarks(from url: URL) {
+        let accessing = url.startAccessingSecurityScopedResource()
+        defer { if accessing { url.stopAccessingSecurityScopedResource() } }
+        guard let data = try? Data(contentsOf: url),
+              let parsed = try? BookmarkTransfer.parse(data: data) else {
+            importFailed = true
+            return
+        }
+        var order = (items.map(\.order).max() ?? -1) + 1
+        withAnimation {
+            for transferItem in parsed {
+                let item = BookmarkItem(title: transferItem.title, url: transferItem.url, order: order, windowType: "popover", preloadEnabled: transferItem.preloadEnabled)
+                modelContext.insert(item)
+                order += 1
+            }
         }
     }
     

@@ -8,6 +8,7 @@
 import SwiftUI
 import SwiftData
 import WebKit
+import UniformTypeIdentifiers
 
 struct ContentView: View {
     
@@ -16,6 +17,10 @@ struct ContentView: View {
     @State private var showingAddDialog = false
     @State private var selectedItem: BookmarkItem?
     @State private var renamingItem: BookmarkItem?
+    @State private var showingImporter = false
+    @State private var exportedURL: URL?
+    @State private var exportFailed = false
+    @State private var importFailed = false
     
     @Environment(\.openWindow) private var openWindow
     @EnvironmentObject private var statusBarController: StatusBarController
@@ -45,20 +50,7 @@ struct ContentView: View {
                         Text(item.title)
                     }
                     .contextMenu {
-                        Button("重载书签", systemImage: "arrow.trianglehead.counterclockwise") {
-                            webViewStore.webView(for: item).load(URLRequest(url: URL(string: item.url)!))
-                        }
-                        Button("在浏览器中打开", systemImage: "safari") {
-                            if let url = URL(string: item.url) { NSWorkspace.shared.open(url) }
-                        }
-                        Button("关闭标签页", systemImage: "xmark") { closeTab(item) }
-                        Divider()
-                        Button("编辑书签", systemImage: "pencil") {
-                            renamingItem = item
-                        }
-                        Button("删除书签", systemImage: "trash", role: .destructive) {
-                            deleteItem(item)
-                        }
+                        contextMenuItems(for: item)
                     }
                     .foregroundStyle(webViewStore.isLoaded(item) ? Color.primary.opacity(1) : Color.primary.opacity(0.3))
                 }
@@ -123,6 +115,21 @@ struct ContentView: View {
                 .disabled(activeWebViewState?.url == nil)
                 .help("在浏览器中打开")
             }
+            ToolbarItem {
+                Menu {
+                    Button(action: { showingImporter = true }) {
+                        Label("导入书签", systemImage: "square.and.arrow.down")
+                    }
+                    Button(action: exportBookmarks) {
+                        Label("导出书签", systemImage: "square.and.arrow.up")
+                    }
+                    .disabled(items.isEmpty)
+                } label: {
+                    Image(systemName: "ellipsis.circle")
+                }
+                .menuIndicator(.hidden)
+                .help("导入/导出书签")
+            }
         }
         .onAppear {
             statusBarController.bindOpenMainWindow {
@@ -145,6 +152,32 @@ struct ContentView: View {
         .sheet(item: $renamingItem) { item in
             BookmarkEditorView(item: item) { _ in }
         }
+        .fileImporter(isPresented: $showingImporter, allowedContentTypes: [.json]) { result in
+            if case .success(let url) = result {
+                importBookmarks(from: url)
+            }
+        }
+        .modifier(BookmarkTransferAlerts(exportedURL: $exportedURL, exportFailed: $exportFailed, importFailed: $importFailed))
+    }
+
+    // MARK: - 子视图
+
+    @ViewBuilder
+    private func contextMenuItems(for item: BookmarkItem) -> some View {
+        Button("重载书签", systemImage: "arrow.trianglehead.counterclockwise") {
+            webViewStore.webView(for: item).load(URLRequest(url: URL(string: item.url)!))
+        }
+        Button("在浏览器中打开", systemImage: "safari") {
+            if let url = URL(string: item.url) { NSWorkspace.shared.open(url) }
+        }
+        Button("关闭标签页", systemImage: "xmark") { closeTab(item) }
+        Divider()
+        Button("编辑书签", systemImage: "pencil") {
+            renamingItem = item
+        }
+        Button("删除书签", systemImage: "trash", role: .destructive) {
+            deleteItem(item)
+        }
     }
 
     // MARK: - 数据操作
@@ -165,6 +198,34 @@ struct ContentView: View {
             modelContext.insert(item)
             let popoverItem = BookmarkItem(item: newItem, order: items.count, windowType: "popover")
             modelContext.insert(popoverItem)
+        }
+    }
+    
+    /// 导出书签到下载文件夹
+    private func exportBookmarks() {
+        do {
+            exportedURL = try BookmarkTransfer.saveToDownloads(items: items)
+        } catch {
+            exportFailed = true
+        }
+    }
+    
+    /// 从 JSON 文件导入书签：合并追加
+    private func importBookmarks(from url: URL) {
+        let accessing = url.startAccessingSecurityScopedResource()
+        defer { if accessing { url.stopAccessingSecurityScopedResource() } }
+        guard let data = try? Data(contentsOf: url),
+              let parsed = try? BookmarkTransfer.parse(data: data) else {
+            importFailed = true
+            return
+        }
+        var order = (items.map(\.order).max() ?? -1) + 1
+        withAnimation {
+            for transferItem in parsed {
+                let item = BookmarkItem(title: transferItem.title, url: transferItem.url, order: order, windowType: "main", preloadEnabled: transferItem.preloadEnabled)
+                modelContext.insert(item)
+                order += 1
+            }
         }
     }
     
